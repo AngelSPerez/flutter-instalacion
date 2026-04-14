@@ -31,14 +31,19 @@ if not exist flutter (
     echo Flutter ya existe, OK
 )
 
-REM ===== 3. PATH Flutter (seguro) =====
+REM ===== 3. PATH Flutter (seguro via registro) =====
 echo [3/10] Configurando PATH Flutter...
 echo %PATH% | find /I "flutter\bin" >nul
 if %errorlevel% neq 0 (
-    setx PATH "%USERPROFILE%\flutter\bin;%PATH%"
+    for /f "tokens=2*" %%A in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set "CURRENT_USER_PATH=%%B"
+    if not defined CURRENT_USER_PATH (
+        reg add "HKCU\Environment" /v PATH /t REG_EXPAND_SZ /d "%USERPROFILE%\flutter\bin" /f >nul
+    ) else (
+        reg add "HKCU\Environment" /v PATH /t REG_EXPAND_SZ /d "%USERPROFILE%\flutter\bin;!CURRENT_USER_PATH!" /f >nul
+    )
 )
 
-REM Aplicar en sesión actual
+REM Aplicar en sesion actual
 set "PATH=%USERPROFILE%\flutter\bin;%PATH%"
 
 REM ===== 4. Verificar Flutter =====
@@ -55,12 +60,12 @@ echo [6/10] Configurando Java...
 set "JAVA_PATH="
 
 for /d %%i in ("%LOCALAPPDATA%\Programs\Microsoft\jdk-*") do (
-    set "JAVA_PATH=%%i"
+    if not defined JAVA_PATH set "JAVA_PATH=%%i"
 )
 
 if not defined JAVA_PATH (
     for /d %%i in ("C:\Program Files\Microsoft\jdk-*") do (
-        set "JAVA_PATH=%%i"
+        if not defined JAVA_PATH set "JAVA_PATH=%%i"
     )
 )
 
@@ -85,34 +90,44 @@ echo [7/10] Creando Android SDK...
 if not exist %USERPROFILE%\Android\Sdk (
     mkdir %USERPROFILE%\Android\Sdk
 )
-cd /d %USERPROFILE%\Android
 
 REM ===== 8. Descargar herramientas =====
 echo [8/10] Descargando commandline-tools...
+cd /d %USERPROFILE%\Android
+
 if not exist sdk.zip (
     curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip
 )
 
+REM Solo extraer si no se extrajo antes
 if not exist cmdline-tools (
     tar -xf sdk.zip
+    if %errorlevel% neq 0 (
+        echo ERROR extrayendo sdk.zip
+        pause
+        exit /b
+    )
 )
 
-mkdir %USERPROFILE%\Android\Sdk\cmdline-tools\latest >nul 2>&1
-xcopy /E /I /Y cmdline-tools %USERPROFILE%\Android\Sdk\cmdline-tools\latest >nul
+REM Crear destino y copiar contenido (evitar duplicar carpeta)
+if not exist %USERPROFILE%\Android\Sdk\cmdline-tools\latest (
+    mkdir %USERPROFILE%\Android\Sdk\cmdline-tools\latest
+)
+xcopy /E /I /Y cmdline-tools\* %USERPROFILE%\Android\Sdk\cmdline-tools\latest\ >nul
 
 REM ===== 9. Variables Android =====
 echo [9/10] Configurando variables Android...
-setx ANDROID_HOME "%USERPROFILE%\Android\Sdk"
-setx ANDROID_SDK_ROOT "%USERPROFILE%\Android\Sdk"
+setx ANDROID_HOME "%USERPROFILE%\Android\Sdk" >nul
+setx ANDROID_SDK_ROOT "%USERPROFILE%\Android\Sdk" >nul
 
-REM Aplicar solo en sesión actual
-set "PATH=%USERPROFILE%\Android\Sdk\cmdline-tools\latest\bin;%USERPROFILE%\Android\Sdk\platform-tools;%PATH%"
+set "ANDROID_HOME=%USERPROFILE%\Android\Sdk"
+set "PATH=%ANDROID_HOME%\cmdline-tools\latest\bin;%ANDROID_HOME%\platform-tools;%PATH%"
 
 REM ===== 10. Instalar SDK =====
 echo [10/10] Instalando SDK y ADB...
 cd /d %USERPROFILE%\Android\Sdk\cmdline-tools\latest\bin
 
-call sdkmanager --licenses
+echo y | call sdkmanager --licenses
 call sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
 REM ===== Verificar ADB =====
@@ -125,8 +140,10 @@ if %errorlevel% neq 0 (
 )
 
 echo =====================================
-echo TODO LISTO 🚀
+echo TODO LISTO
 echo Reinicia la terminal antes de usar Flutter
 echo =====================================
+
+flutter doctor
 
 pause
