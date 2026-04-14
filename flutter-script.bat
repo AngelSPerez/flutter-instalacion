@@ -15,32 +15,50 @@ if %errorlevel% neq 0 (
 
 REM ===== 1. Instalar Scoop =====
 echo [1/10] Instalando Scoop...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "if (!(Get-Command scoop -ErrorAction SilentlyContinue)) { irm get.scoop.sh | iex }"
+powershell -NoProfile -Command "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force; irm get.scoop.sh | iex"
 
-set "PATH=%USERPROFILE%\scoop\shims;%PATH%"
+REM Refrescar PATH desde registro para sesion actual
+for /f "usebackq tokens=2,*" %%A in (`reg query HKCU\Environment /v PATH 2^>nul`) do set "USERPATH=%%B"
+set "PATH=%USERPROFILE%\scoop\shims;%USERPATH%;%SystemRoot%\system32;%SystemRoot%"
+
+REM Verificar Scoop
+where scoop >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ERROR: Scoop no se reconoce incluso tras refrescar PATH.
+    pause
+    exit /b
+)
 
 REM ===== 2. Instalar Git via Scoop =====
 echo [2/10] Instalando Git...
-call scoop install git
+powershell -NoProfile -Command "scoop install git"
 if %errorlevel% neq 0 (
     echo ERROR: Fallo la instalacion de Git.
     pause
     exit /b
 )
 
-REM ===== 3. Instalar Java 21 via Scoop (sin UAC) =====
+REM Refrescar PATH tras instalar Git
+for /f "usebackq tokens=2,*" %%A in (`reg query HKCU\Environment /v PATH 2^>nul`) do set "USERPATH=%%B"
+set "PATH=%USERPROFILE%\scoop\shims;%USERPATH%;%SystemRoot%\system32;%SystemRoot%"
+
+REM ===== 3. Instalar Java 21 via Scoop =====
 echo [3/10] Instalando Java 21 (Temurin)...
-call scoop bucket add java
-call scoop install temurin21-jdk
+powershell -NoProfile -Command "scoop bucket add java"
+powershell -NoProfile -Command "scoop install temurin21-jdk"
 if %errorlevel% neq 0 (
     echo ERROR: Fallo la instalacion de Java.
     pause
     exit /b
 )
 
+REM Refrescar PATH tras instalar Java
+for /f "usebackq tokens=2,*" %%A in (`reg query HKCU\Environment /v PATH 2^>nul`) do set "USERPATH=%%B"
+set "PATH=%USERPROFILE%\scoop\shims;%USERPATH%;%SystemRoot%\system32;%SystemRoot%"
+
 REM ===== 4. Configurar JAVA_HOME =====
 echo [4/10] Configurando JAVA_HOME...
-for /f "delims=" %%i in ('scoop prefix temurin21-jdk') do set "JAVA_HOME=%%i"
+for /f "delims=" %%i in ('powershell -NoProfile -Command "scoop prefix temurin21-jdk"') do set "JAVA_HOME=%%i"
 
 if not defined JAVA_HOME (
     echo ERROR: No se pudo obtener el path de Java desde Scoop.
