@@ -15,7 +15,8 @@ if %errorlevel% neq 0 (
 
 REM ===== 1. Instalar Scoop =====
 echo [1/10] Instalando Scoop...
-powershell -NoProfile -Command "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force; irm get.scoop.sh | iex"
+powershell -NoProfile -Command "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force"
+powershell -NoProfile -Command "Invoke-WebRequest -Uri https://get.scoop.sh -OutFile %TEMP%\install-scoop.ps1; & %TEMP%\install-scoop.ps1"
 
 REM Refrescar PATH desde registro para sesion actual
 for /f "usebackq tokens=2,*" %%A in (`reg query HKCU\Environment /v PATH 2^>nul`) do set "USERPATH=%%B"
