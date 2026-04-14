@@ -31,17 +31,9 @@ if not exist flutter (
     echo Flutter ya existe, OK
 )
 
-REM ===== 3. PATH Flutter (seguro via registro) =====
+REM ===== 3. PATH Flutter =====
 echo [3/10] Configurando PATH Flutter...
-echo %PATH% | find /I "flutter\bin" >nul
-if %errorlevel% neq 0 (
-    for /f "tokens=2*" %%A in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set "CURRENT_USER_PATH=%%B"
-    if not defined CURRENT_USER_PATH (
-        reg add "HKCU\Environment" /v PATH /t REG_EXPAND_SZ /d "%USERPROFILE%\flutter\bin" /f >nul
-    ) else (
-        reg add "HKCU\Environment" /v PATH /t REG_EXPAND_SZ /d "%USERPROFILE%\flutter\bin;!CURRENT_USER_PATH!" /f >nul
-    )
-)
+powershell -NoProfile -Command "$current = [Environment]::GetEnvironmentVariable('PATH','User'); if ($current -notlike '*flutter\bin*') { $new = $env:USERPROFILE + '\flutter\bin;' + $current; [Environment]::SetEnvironmentVariable('PATH', $new, 'User') }"
 
 REM Aplicar en sesion actual
 set "PATH=%USERPROFILE%\flutter\bin;%PATH%"
@@ -75,10 +67,11 @@ if not defined JAVA_PATH (
     exit /b
 )
 
-echo Java encontrado en:
-echo %JAVA_PATH%
+echo Java encontrado en: %JAVA_PATH%
 
-setx JAVA_HOME "%JAVA_PATH%" >nul
+powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('JAVA_HOME', '%JAVA_PATH%', 'User')"
+
+powershell -NoProfile -Command "$current = [Environment]::GetEnvironmentVariable('PATH','User'); if ($current -notlike '*jdk*') { $new = '%JAVA_PATH%\bin;' + $current; [Environment]::SetEnvironmentVariable('PATH', $new, 'User') }"
 
 set "JAVA_HOME=%JAVA_PATH%"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
@@ -99,7 +92,6 @@ if not exist sdk.zip (
     curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip
 )
 
-REM Solo extraer si no se extrajo antes
 if not exist cmdline-tools (
     tar -xf sdk.zip
     if %errorlevel% neq 0 (
@@ -109,7 +101,6 @@ if not exist cmdline-tools (
     )
 )
 
-REM Crear destino y copiar contenido (evitar duplicar carpeta)
 if not exist %USERPROFILE%\Android\Sdk\cmdline-tools\latest (
     mkdir %USERPROFILE%\Android\Sdk\cmdline-tools\latest
 )
@@ -117,8 +108,11 @@ xcopy /E /I /Y cmdline-tools\* %USERPROFILE%\Android\Sdk\cmdline-tools\latest\ >
 
 REM ===== 9. Variables Android =====
 echo [9/10] Configurando variables Android...
-setx ANDROID_HOME "%USERPROFILE%\Android\Sdk" >nul
-setx ANDROID_SDK_ROOT "%USERPROFILE%\Android\Sdk" >nul
+powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('ANDROID_HOME', $env:USERPROFILE + '\Android\Sdk', 'User')"
+
+powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('ANDROID_SDK_ROOT', $env:USERPROFILE + '\Android\Sdk', 'User')"
+
+powershell -NoProfile -Command "$current = [Environment]::GetEnvironmentVariable('PATH','User'); if ($current -notlike '*Android\Sdk*') { $new = $env:USERPROFILE + '\Android\Sdk\cmdline-tools\latest\bin;' + $env:USERPROFILE + '\Android\Sdk\platform-tools;' + $current; [Environment]::SetEnvironmentVariable('PATH', $new, 'User') }"
 
 set "ANDROID_HOME=%USERPROFILE%\Android\Sdk"
 set "PATH=%ANDROID_HOME%\cmdline-tools\latest\bin;%ANDROID_HOME%\platform-tools;%PATH%"
@@ -128,7 +122,7 @@ echo [10/10] Instalando SDK y ADB...
 cd /d %USERPROFILE%\Android\Sdk\cmdline-tools\latest\bin
 
 echo y | call sdkmanager --licenses
-call sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+call sdkmanager "platform-tools" "platforms;android-36" "build-tools;28.0.3"
 
 REM ===== Verificar ADB =====
 echo Verificando ADB...
