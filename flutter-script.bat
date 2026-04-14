@@ -79,14 +79,15 @@ if exist "%USERPROFILE%\flutter\bin\flutter.bat" (
 )
 
 REM --- No existe, hay que descargarlo ---
-echo Flutter no detectado, descargando...
+echo Flutter no detectado, descargando (modo curl)...
+
 powershell -NoProfile -Command ^
-    "$j   = (Invoke-WebRequest 'https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json').Content | ConvertFrom-Json; " ^
+    "$j   = Invoke-RestMethod 'https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json'; " ^
     "$h   = $j.current_release.stable; " ^
     "$arc = ($j.releases | Where-Object { $_.hash -eq $h }).archive; " ^
     "$url = $j.base_url + '/' + $arc; " ^
     "Write-Host $url; " ^
-    "Invoke-WebRequest -Uri $url -OutFile '%USERPROFILE%\flutter.zip'"
+    "curl.exe -L $url -o '%USERPROFILE%\flutter.zip'"
 
 if %errorlevel% neq 0 (
     echo ERROR: Fallo la descarga de Flutter.
