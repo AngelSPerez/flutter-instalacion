@@ -85,17 +85,25 @@ for /f "delims=" %%i in ('powershell -NoProfile -Command ^
     $h = $j.current_release.stable; ^
     ($j.releases | Where-Object { $_.hash -eq $h }).archive"') do set "ARC=%%i"
 
+if "%ARC%"=="" (
+    echo ERROR: No se pudo obtener la version de Flutter.
+    pause
+    exit /b
+)
+
 set "URL=https://storage.googleapis.com/flutter_infra_release/releases/%ARC%"
 
 echo URL: %URL%
 
-curl.exe -L "%URL%" -o "%USERPROFILE%\flutter.zip"
+curl.exe -L --retry 5 --retry-delay 2 "%URL%" -o "%USERPROFILE%\flutter.zip"
 
-if %errorlevel% neq 0 (
+if not exist "%USERPROFILE%\flutter.zip" (
     echo ERROR: Fallo la descarga de Flutter.
     pause
     exit /b
 )
+
+echo Descarga completada correctamente.
 
 echo Verificando integridad de flutter.zip...
 powershell -NoProfile -Command ^
