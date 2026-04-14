@@ -55,10 +55,15 @@ if %errorlevel% neq 0 (
 )
 
 REM ===== 3. Descargar Flutter como ZIP (sin Git) =====
-echo [3/7] Descargando Flutter...
+echo [3/7] Configurando Flutter...
 
-if not exist "%USERPROFILE%\flutter\bin\flutter.bat" (
-    echo Obteniendo URL de la version estable...
+flutter doctor >nul 2>&1
+if %errorlevel% equ 0 (
+    echo Flutter ya instalado y funcionando, saltando descarga.
+) else if exist "%USERPROFILE%\flutter\bin\flutter.bat" (
+    echo Flutter existe pero no esta en PATH, configurando...
+) else (
+    echo Flutter no detectado, descargando...
     powershell -NoProfile -Command ^
         "$j   = (Invoke-WebRequest 'https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json').Content | ConvertFrom-Json; " ^
         "$h   = $j.current_release.stable; " ^
@@ -72,8 +77,6 @@ if not exist "%USERPROFILE%\flutter\bin\flutter.bat" (
         "Expand-Archive -Path '%USERPROFILE%\flutter.zip' -DestinationPath '%USERPROFILE%' -Force"
 
     del "%USERPROFILE%\flutter.zip"
-) else (
-    echo Flutter ya existe, OK
 )
 
 REM ===== 4. PATH Flutter =====
