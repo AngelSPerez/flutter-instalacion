@@ -22,7 +22,6 @@ if not exist "%JAVA_HOME%\bin\java.exe" (
     powershell -NoProfile -Command ^
         "Expand-Archive -Path '%JAVA_DIR%\jdk21.zip' -DestinationPath '%JAVA_DIR%\tmp21' -Force"
 
-    REM Adoptium extrae a una carpeta tipo jdk-21.x.x+xx — la renombramos a jdk-21
     for /d %%i in ("%JAVA_DIR%\tmp21\*") do (
         move "%%i" "%JAVA_HOME%" >nul
     )
@@ -38,7 +37,6 @@ echo [2/7] Configurando JAVA_HOME y PATH...
 powershell -NoProfile -Command ^
     "[Environment]::SetEnvironmentVariable('JAVA_HOME', '%JAVA_HOME%', 'User')"
 
-REM Inserta Java al inicio del PATH de usuario (elimina duplicados si ya estaba)
 powershell -NoProfile -Command ^
     "$jbin = '%JAVA_HOME%\bin'; " ^
     "$cur  = [Environment]::GetEnvironmentVariable('PATH','User'); " ^
@@ -54,31 +52,49 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
-REM ===== 3. Descargar Flutter como ZIP (sin Git) =====
+REM ===== 3. Flutter - deteccion =====
 echo [3/7] Configurando Flutter...
 
-flutter doctor >nul 2>&1
+where flutter >nul 2>&1
 if %errorlevel% equ 0 (
-    echo Flutter ya instalado y funcionando, saltando descarga.
-) else if exist "%USERPROFILE%\flutter\bin\flutter.bat" (
-    echo Flutter existe pero no esta en PATH, configurando...
-) else (
-    echo Flutter no detectado, descargando...
-    powershell -NoProfile -Command ^
-        "$j   = (Invoke-WebRequest 'https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json').Content | ConvertFrom-Json; " ^
-        "$h   = $j.current_release.stable; " ^
-        "$arc = ($j.releases | Where-Object { $_.hash -eq $h }).archive; " ^
-        "$url = $j.base_url + '/' + $arc; " ^
-        "Write-Host $url; " ^
-        "Invoke-WebRequest -Uri $url -OutFile '%USERPROFILE%\flutter.zip'"
-
-    echo Extrayendo Flutter...
-    powershell -NoProfile -Command ^
-        "Expand-Archive -Path '%USERPROFILE%\flutter.zip' -DestinationPath '%USERPROFILE%' -Force"
-
-    del "%USERPROFILE%\flutter.zip"
+    echo Flutter ya instalado y en PATH, saltando descarga.
+    goto :flutter_listo
 )
 
+if exist "%USERPROFILE%\flutter\bin\flutter.bat" (
+    echo Flutter existe en disco pero no estaba en PATH.
+    goto :flutter_path
+)
+
+REM --- No existe, hay que descargarlo ---
+echo Flutter no detectado, descargando...
+powershell -NoProfile -Command ^
+    "$j   = (Invoke-WebRequest 'https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json').Content | ConvertFrom-Json; " ^
+    "$h   = $j.current_release.stable; " ^
+    "$arc = ($j.releases | Where-Object { $_.hash -eq $h }).archive; " ^
+    "$url = $j.base_url + '/' + $arc; " ^
+    "Write-Host $url; " ^
+    "Invoke-WebRequest -Uri $url -OutFile '%USERPROFILE%\flutter.zip'"
+
+if %errorlevel% neq 0 (
+    echo ERROR: Fallo la descarga de Flutter.
+    pause
+    exit /b
+)
+
+echo Extrayendo Flutter...
+powershell -NoProfile -Command ^
+    "Expand-Archive -Path '%USERPROFILE%\flutter.zip' -DestinationPath '%USERPROFILE%' -Force"
+
+if %errorlevel% neq 0 (
+    echo ERROR: Fallo la extraccion de Flutter.
+    pause
+    exit /b
+)
+
+del "%USERPROFILE%\flutter.zip"
+
+:flutter_path
 REM ===== 4. PATH Flutter =====
 echo [4/7] Configurando PATH Flutter...
 powershell -NoProfile -Command ^
@@ -87,7 +103,12 @@ powershell -NoProfile -Command ^
     "if ($cur -notlike '*flutter\bin*') { [Environment]::SetEnvironmentVariable('PATH', $fb + ';' + $cur, 'User') }"
 
 set "PATH=%USERPROFILE%\flutter\bin;%PATH%"
+goto :android_inicio
 
+:flutter_listo
+echo [4/7] PATH Flutter ya configurado, saltando...
+
+:android_inicio
 REM ===== 5. Crear estructura Android SDK =====
 echo [5/7] Creando Android SDK...
 if not exist "%USERPROFILE%\Android\Sdk" mkdir "%USERPROFILE%\Android\Sdk"
