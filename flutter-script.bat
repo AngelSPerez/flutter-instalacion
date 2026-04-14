@@ -18,6 +18,18 @@ if not exist "%JAVA_HOME%\bin\java.exe" (
     powershell -NoProfile -Command ^
         "Invoke-WebRequest -Uri 'https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jdk/hotspot/normal/eclipse' -OutFile '%JAVA_DIR%\jdk21.zip'"
 
+    echo Verificando integridad de jdk21.zip...
+    powershell -NoProfile -Command ^
+        "try { Add-Type -Assembly 'System.IO.Compression.FileSystem'; " ^
+        "[System.IO.Compression.ZipFile]::OpenRead('%JAVA_DIR%\jdk21.zip').Dispose(); " ^
+        "exit 0 } catch { exit 1 }"
+    if %errorlevel% neq 0 (
+        echo ERROR: jdk21.zip corrupto, eliminando y abortando.
+        del /f "%JAVA_DIR%\jdk21.zip"
+        pause
+        exit /b
+    )
+
     echo Extrayendo JDK...
     powershell -NoProfile -Command ^
         "Expand-Archive -Path '%JAVA_DIR%\jdk21.zip' -DestinationPath '%JAVA_DIR%\tmp21' -Force"
@@ -82,6 +94,18 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
+echo Verificando integridad de flutter.zip...
+powershell -NoProfile -Command ^
+    "try { Add-Type -Assembly 'System.IO.Compression.FileSystem'; " ^
+    "[System.IO.Compression.ZipFile]::OpenRead('%USERPROFILE%\flutter.zip').Dispose(); " ^
+    "exit 0 } catch { exit 1 }"
+if %errorlevel% neq 0 (
+    echo ERROR: flutter.zip corrupto, eliminando y abortando.
+    del /f "%USERPROFILE%\flutter.zip"
+    pause
+    exit /b
+)
+
 echo Extrayendo Flutter...
 powershell -NoProfile -Command ^
     "Expand-Archive -Path '%USERPROFILE%\flutter.zip' -DestinationPath '%USERPROFILE%' -Force"
@@ -115,18 +139,43 @@ if not exist "%USERPROFILE%\Android\Sdk" mkdir "%USERPROFILE%\Android\Sdk"
 
 cd /d "%USERPROFILE%\Android"
 
-if not exist sdk.zip (
-    echo Descargando commandline-tools...
-    curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip
+REM --- Verificar si sdk.zip existe y no esta corrupto ---
+if exist sdk.zip (
+    echo Verificando integridad de sdk.zip...
+    powershell -NoProfile -Command ^
+        "try { Add-Type -Assembly 'System.IO.Compression.FileSystem'; " ^
+        "[System.IO.Compression.ZipFile]::OpenRead('%USERPROFILE%\Android\sdk.zip').Dispose(); " ^
+        "exit 0 } catch { exit 1 }"
+    if %errorlevel% neq 0 (
+        echo sdk.zip corrupto, eliminando...
+        del /f sdk.zip
+    ) else (
+        echo sdk.zip OK, reutilizando.
+    )
 )
 
-if not exist cmdline-tools (
-    tar -xf sdk.zip
+if not exist sdk.zip (
+    echo Descargando commandline-tools...
+    curl -L --retry 3 -o sdk.zip https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip
     if %errorlevel% neq 0 (
-        echo ERROR extrayendo sdk.zip
+        echo ERROR: Fallo la descarga de commandline-tools.
         pause
         exit /b
     )
+)
+
+REM --- Limpiar extraccion previa si existe ---
+if exist cmdline-tools (
+    echo Limpiando extraccion anterior de cmdline-tools...
+    rmdir /s /q cmdline-tools
+)
+
+tar -xf sdk.zip
+if %errorlevel% neq 0 (
+    echo ERROR extrayendo sdk.zip, puede estar corrupto.
+    del /f sdk.zip
+    pause
+    exit /b
 )
 
 if not exist "%USERPROFILE%\Android\Sdk\cmdline-tools\latest" (
