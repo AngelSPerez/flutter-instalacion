@@ -2,28 +2,58 @@
 setlocal enabledelayedexpansion
 
 echo =====================================
-echo SETUP FLUTTER + ANDROID SDK (ROBUSTO)
+echo SETUP FLUTTER + ANDROID SDK (SIN UAC)
 echo =====================================
 
-REM ===== Verificar winget =====
-where winget >nul 2>&1
+REM ===== Verificar PowerShell =====
+where powershell >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ERROR: winget no esta instalado. Actualiza Windows o instala App Installer.
+    echo ERROR: PowerShell no encontrado.
     pause
     exit /b
 )
 
-REM ===== 1. Instalar Git =====
-echo [1/10] Instalando Git...
-winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
+REM ===== 1. Instalar Scoop =====
+echo [1/10] Instalando Scoop...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if (!(Get-Command scoop -ErrorAction SilentlyContinue)) { irm get.scoop.sh | iex }"
+
+set "PATH=%USERPROFILE%\scoop\shims;%PATH%"
+
+REM ===== 2. Instalar Git via Scoop =====
+echo [2/10] Instalando Git...
+call scoop install git
 if %errorlevel% neq 0 (
     echo ERROR: Fallo la instalacion de Git.
     pause
     exit /b
 )
 
-REM ===== 2. Descargar Flutter =====
-echo [2/10] Configurando Flutter...
+REM ===== 3. Instalar Java 21 via Scoop (sin UAC) =====
+echo [3/10] Instalando Java 21 (Temurin)...
+call scoop bucket add java
+call scoop install temurin21-jdk
+if %errorlevel% neq 0 (
+    echo ERROR: Fallo la instalacion de Java.
+    pause
+    exit /b
+)
+
+REM ===== 4. Configurar JAVA_HOME =====
+echo [4/10] Configurando JAVA_HOME...
+for /f "delims=" %%i in ('scoop prefix temurin21-jdk') do set "JAVA_HOME=%%i"
+
+if not defined JAVA_HOME (
+    echo ERROR: No se pudo obtener el path de Java desde Scoop.
+    pause
+    exit /b
+)
+
+echo Java encontrado en: %JAVA_HOME%
+powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('JAVA_HOME', '%JAVA_HOME%', 'User')"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+
+REM ===== 5. Clonar Flutter =====
+echo [5/10] Configurando Flutter...
 cd /d %USERPROFILE%
 if not exist flutter (
     git clone https://github.com/flutter/flutter.git -b stable
@@ -36,55 +66,17 @@ if not exist flutter (
     echo Flutter ya existe, OK
 )
 
-REM ===== 3. PATH Flutter =====
-echo [3/10] Configurando PATH Flutter...
+REM ===== 6. PATH Flutter =====
+echo [6/10] Configurando PATH Flutter...
 powershell -NoProfile -Command "$current = [Environment]::GetEnvironmentVariable('PATH','User'); if ($current -notlike '*flutter\bin*') { $new = $env:USERPROFILE + '\flutter\bin;' + $current; [Environment]::SetEnvironmentVariable('PATH', $new, 'User') }"
-
 set "PATH=%USERPROFILE%\flutter\bin;%PATH%"
 
-REM ===== 4. Instalar Java =====
-echo [4/10] Instalando Java 21...
-winget install Microsoft.OpenJDK.21 --accept-package-agreements --accept-source-agreements
+REM ===== 7. Crear estructura Android SDK =====
+echo [7/10] Creando Android SDK...
+if not exist %USERPROFILE%\Android\Sdk mkdir %USERPROFILE%\Android\Sdk
 
-REM ===== 5. Configurar Java =====
-echo [5/10] Configurando Java...
-
-set "JAVA_PATH="
-
-for /d %%i in ("%LOCALAPPDATA%\Programs\Microsoft\jdk-*") do (
-    if not defined JAVA_PATH set "JAVA_PATH=%%i"
-)
-
-if not defined JAVA_PATH (
-    for /d %%i in ("C:\Program Files\Microsoft\jdk-*") do (
-        if not defined JAVA_PATH set "JAVA_PATH=%%i"
-    )
-)
-
-if not defined JAVA_PATH (
-    echo ERROR: No se encontro Java
-    pause
-    exit /b
-)
-
-echo Java encontrado en: %JAVA_PATH%
-
-powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('JAVA_HOME', '%JAVA_PATH%', 'User')"
-powershell -NoProfile -Command "$current = [Environment]::GetEnvironmentVariable('PATH','User'); if ($current -notlike '*jdk*') { $new = '%JAVA_PATH%\bin;' + $current; [Environment]::SetEnvironmentVariable('PATH', $new, 'User') }"
-
-set "JAVA_HOME=%JAVA_PATH%"
-set "PATH=%JAVA_HOME%\bin;%PATH%"
-
-echo JAVA configurado correctamente
-
-REM ===== 6. Crear SDK =====
-echo [6/10] Creando Android SDK...
-if not exist %USERPROFILE%\Android\Sdk (
-    mkdir %USERPROFILE%\Android\Sdk
-)
-
-REM ===== 7. Descargar herramientas =====
-echo [7/10] Descargando commandline-tools...
+REM ===== 8. Descargar cmdline-tools =====
+echo [8/10] Descargando commandline-tools...
 cd /d %USERPROFILE%\Android
 
 if not exist sdk.zip (
@@ -105,8 +97,8 @@ if not exist %USERPROFILE%\Android\Sdk\cmdline-tools\latest (
 )
 xcopy /E /I /Y cmdline-tools\* %USERPROFILE%\Android\Sdk\cmdline-tools\latest\ >nul
 
-REM ===== 8. Variables Android =====
-echo [8/10] Configurando variables Android...
+REM ===== 9. Variables Android =====
+echo [9/10] Configurando variables Android...
 powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('ANDROID_HOME', $env:USERPROFILE + '\Android\Sdk', 'User')"
 powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('ANDROID_SDK_ROOT', $env:USERPROFILE + '\Android\Sdk', 'User')"
 powershell -NoProfile -Command "$current = [Environment]::GetEnvironmentVariable('PATH','User'); if ($current -notlike '*Android\Sdk*') { $new = $env:USERPROFILE + '\Android\Sdk\cmdline-tools\latest\bin;' + $env:USERPROFILE + '\Android\Sdk\platform-tools;' + $current; [Environment]::SetEnvironmentVariable('PATH', $new, 'User') }"
@@ -114,36 +106,31 @@ powershell -NoProfile -Command "$current = [Environment]::GetEnvironmentVariable
 set "ANDROID_HOME=%USERPROFILE%\Android\Sdk"
 set "PATH=%ANDROID_HOME%\cmdline-tools\latest\bin;%ANDROID_HOME%\platform-tools;%PATH%"
 
-REM ===== 9. Instalar SDK =====
-echo [9/10] Instalando SDK y ADB...
+REM ===== 10. Instalar SDK components y verificar =====
+echo [10/10] Instalando SDK components...
 cd /d %USERPROFILE%\Android\Sdk\cmdline-tools\latest\bin
 
 echo y | call sdkmanager --licenses
 call sdkmanager "platform-tools" "platforms;android-36" "build-tools;28.0.3"
 if %errorlevel% neq 0 (
-    echo ERROR: Fallo sdkmanager. Verifica la instalacion de Java y el SDK.
+    echo ERROR: Fallo sdkmanager.
     pause
     exit /b
 )
 
-REM ===== 10. Verificar ADB =====
-echo [10/10] Verificando ADB...
 adb version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo WARNING: ADB no detectado en PATH (reinicia terminal)
+    echo WARNING: ADB no detectado aun (reinicia la terminal)
 ) else (
     echo ADB instalado correctamente
 )
 
-REM ===== Licencias y diagnostico final =====
 echo Aceptando licencias Flutter/Android...
 call flutter doctor --android-licenses
 
 echo =====================================
-echo TODO LISTO
-echo Reinicia la terminal antes de usar Flutter
+echo TODO LISTO - Reinicia la terminal
 echo =====================================
 
 flutter doctor
-
 pause
