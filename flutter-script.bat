@@ -32,7 +32,7 @@ if %errorlevel% neq 0 (
 
 REM ===== 2. Instalar Git via Scoop =====
 echo [2/10] Instalando Git...
-powershell -NoProfile -Command "scoop install git"
+call %USERPROFILE%\scoop\shims\scoop.cmd install git
 if %errorlevel% neq 0 (
     echo ERROR: Fallo la instalacion de Git.
     pause
@@ -45,8 +45,8 @@ set "PATH=%USERPROFILE%\scoop\shims;%USERPATH%;%SystemRoot%\system32;%SystemRoot
 
 REM ===== 3. Instalar Java 21 via Scoop =====
 echo [3/10] Instalando Java 21 (Temurin)...
-powershell -NoProfile -Command "scoop bucket add java"
-powershell -NoProfile -Command "scoop install temurin21-jdk"
+call %USERPROFILE%\scoop\shims\scoop.cmd bucket add java
+call %USERPROFILE%\scoop\shims\scoop.cmd install temurin21-jdk
 if %errorlevel% neq 0 (
     echo ERROR: Fallo la instalacion de Java.
     pause
@@ -59,7 +59,7 @@ set "PATH=%USERPROFILE%\scoop\shims;%USERPATH%;%SystemRoot%\system32;%SystemRoot
 
 REM ===== 4. Configurar JAVA_HOME =====
 echo [4/10] Configurando JAVA_HOME...
-for /f "delims=" %%i in ('powershell -NoProfile -Command "scoop prefix temurin21-jdk"') do set "JAVA_HOME=%%i"
+for /f "delims=" %%i in ('call %USERPROFILE%\scoop\shims\scoop.cmd prefix temurin21-jdk') do set "JAVA_HOME=%%i"
 
 if not defined JAVA_HOME (
     echo ERROR: No se pudo obtener el path de Java desde Scoop.
