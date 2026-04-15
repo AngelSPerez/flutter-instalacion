@@ -15,8 +15,7 @@ if not exist "%JAVA_HOME%\bin\java.exe" (
     if not exist "%JAVA_DIR%" mkdir "%JAVA_DIR%"
 
     echo Descargando JDK 21 desde Adoptium...
-    powershell -NoProfile -Command ^
-        "Invoke-WebRequest -Uri 'https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jdk/hotspot/normal/eclipse' -OutFile '%JAVA_DIR%\jdk21.zip'"
+    curl.exe -L --retry 5 --retry-delay 2 "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jdk/hotspot/normal/eclipse" -o "%JAVA_DIR%\jdk21.zip"
 
     echo Verificando integridad de jdk21.zip...
     powershell -NoProfile -Command ^
