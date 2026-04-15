@@ -213,8 +213,9 @@ REM ===== 7. Instalar SDK components =====
 echo [7/7] Instalando SDK components...
 cd /d "%ANDROID_HOME%\cmdline-tools\latest\bin"
 
-echo y | call sdkmanager --licenses
+echo y | sdkmanager --licenses
 call sdkmanager "platform-tools" "platforms;android-36" "build-tools;28.0.3"
+echo y | sdkmanager --licenses
 if %errorlevel% neq 0 (
     echo ERROR: Fallo sdkmanager.
     pause
