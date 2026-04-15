@@ -69,12 +69,12 @@ echo [3/7] Configurando Flutter...
 where flutter >nul 2>&1
 if %errorlevel% equ 0 (
     echo Flutter ya instalado y en PATH, saltando descarga.
-    goto :flutter_listo
+    goto flutter_listo
 )
 
 if exist "%USERPROFILE%\flutter\bin\flutter.bat" (
     echo Flutter existe en disco pero no estaba en PATH.
-    goto :flutter_path
+    goto flutter_path
 )
 
 echo Flutter no detectado, descargando (modo curl)...
