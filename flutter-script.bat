@@ -80,10 +80,7 @@ if exist "%USERPROFILE%\flutter\bin\flutter.bat" (
 
 echo Flutter no detectado, descargando (modo curl)...
 
-for /f "delims=" %%i in ('powershell -NoProfile -Command ^
-    "$j = Invoke-RestMethod 'https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json'; ^
-    $h = $j.current_release.stable; ^
-    ($j.releases | Where-Object { $_.hash -eq $h }).archive"') do set "ARC=%%i"
+for /f "usebackq delims=" %%i in (`powershell -NoProfile -Command "$j = Invoke-RestMethod 'https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json'; $h = $j.current_release.stable; ($j.releases | Where-Object { $_.hash -eq $h }).archive"`) do set "ARC=%%i"
 
 if "%ARC%"=="" (
     echo ERROR: No se pudo obtener la version de Flutter.
