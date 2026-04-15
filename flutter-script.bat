@@ -134,7 +134,7 @@ powershell -NoProfile -Command ^
     "if ($cur -notlike '*flutter\bin*') { [Environment]::SetEnvironmentVariable('PATH', $fb + ';' + $cur, 'User') }"
 
 set "PATH=%USERPROFILE%\flutter\bin;%PATH%"
-goto :android_inicio
+goto android_inicio
 
 :flutter_listo
 echo [4/7] PATH Flutter ya configurado, saltando...
